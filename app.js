@@ -7,6 +7,9 @@ const cors = require('cors');
 const rateLimit = require('express-rate-limit');
 require('dotenv').config({ path: './Config.env' });
 
+// Router
+const userRouter = require('./Router/userRouter');
+
 const app = express();
 
 // Environment variables
@@ -66,6 +69,8 @@ app.get('/', (req, res) => {
         message: 'Welcome to Remote Work Collaboration Suite API'
     });
 });
+
+app.use('/api/collab/user', userRouter);
 
 // Handle undefined routes
 app.all('*', (req, res, next) => {
