@@ -9,6 +9,7 @@ require('dotenv').config({ path: './Config.env' });
 
 // Router
 const userRouter = require('./Router/userRouter');
+const sessionRouter = require('./Router/sessionRouter');
 
 const app = express();
 
@@ -70,7 +71,9 @@ app.get('/', (req, res) => {
     });
 });
 
+// Routes
 app.use('/api/collab/user', userRouter);
+app.use('/api/collab/session', sessionRouter);
 
 // Handle undefined routes
 app.all('*', (req, res, next) => {
