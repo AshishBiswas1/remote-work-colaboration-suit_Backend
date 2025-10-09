@@ -10,6 +10,10 @@ require('dotenv').config({ path: './Config.env' });
 // Router
 const userRouter = require('./Router/userRouter');
 const sessionRouter = require('./Router/sessionRouter');
+const { router: documentRouter } = require('./Router/documentRouter');
+
+// Error handling
+const { globalErrorHandler } = require('./controller/errorController');
 
 const app = express();
 
@@ -21,10 +25,17 @@ app.set('trust proxy', 1);
 // CORS configuration
 app.use(
   cors({
-    origin: FRONTEND_ORIGIN,
+    origin: [
+      'http://localhost:5173',
+      'http://localhost:5173/',
+      'http://localhost:3000',
+      'http://localhost:3000/',
+      FRONTEND_ORIGIN.replace(/\/$/, ''), // Remove trailing slash
+      FRONTEND_ORIGIN // Keep original
+    ],
     credentials: true,
-    methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization']
+    methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS', 'PUT'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
   })
 );
 
@@ -67,38 +78,46 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.get('/', (req, res) => {
     res.status(200).json({
         status: 'success',
-        message: 'Welcome to Remote Work Collaboration Suite API'
+        message: 'Welcome to Remote Work Collaboration Suite API',
+        services: {
+            api: 'http://localhost:8000',
+            websocket: 'ws://localhost:8000/yjs-ws',
+            chat: 'http://localhost:8080 (when session active)'
+        }
+    });
+});
+
+// WebRTC signaling server stats endpoint
+app.get('/api/collab/webrtc/stats', (req, res) => {
+    // This will be populated when the server starts
+    const webrtcServer = req.app.get('webrtcServer');
+    
+    if (!webrtcServer) {
+        return res.status(503).json({
+            status: 'error',
+            message: 'WebRTC signaling server not available'
+        });
+    }
+
+    const stats = webrtcServer.getStats();
+    
+    res.status(200).json({
+        status: 'success',
+        data: {
+            server_status: 'running',
+            endpoint: 'ws://localhost:8000/yjs-ws',
+            ...stats,
+            timestamp: new Date().toISOString()
+        }
     });
 });
 
 // Routes
 app.use('/api/collab/user', userRouter);
 app.use('/api/collab/session', sessionRouter);
-
-// Handle undefined routes
-app.all('*', (req, res, next) => {
-    const err = new Error(`Can't find ${req.originalUrl} on this server!`);
-    err.status = 'fail';
-    err.statusCode = 404;
-    
-    res.status(404).json({
-        status: 'fail',
-        message: err.message
-    });
-});
+app.use('/api/collab/document', documentRouter);
 
 // Global error handling middleware
-app.use((err, req, res, next) => {
-    console.error('🚨 Error:', err.stack);
-    
-    const statusCode = err.statusCode || 500;
-    const status = err.status || 'error';
-    
-    res.status(statusCode).json({
-        status: status,
-        message: process.env.NODE_ENV === 'production' ? 'Something went wrong!' : err.message,
-        ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
-    });
-});
+app.use(globalErrorHandler);
 
 module.exports = app;

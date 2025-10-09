@@ -1,5 +1,6 @@
 const { supabase, supabaseAdmin } = require('../util/supabaseClient');
 const catchAsync = require('../util/catchAsync');
+const AppError = require('../util/appError');
 
 // Get all users
 exports.getAllUsers = catchAsync(async (req, res, next) => {
@@ -9,10 +10,7 @@ exports.getAllUsers = catchAsync(async (req, res, next) => {
         .order('created_at', { ascending: false });
 
     if (error) {
-        return res.status(400).json({
-            status: 'fail',
-            message: error.message
-        });
+        return next(new AppError(error.message, 400));
     }
 
     res.status(200).json({

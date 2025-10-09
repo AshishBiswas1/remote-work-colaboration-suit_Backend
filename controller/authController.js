@@ -1,5 +1,6 @@
 const { supabase, supabaseAdmin } = require('../util/supabaseClient');
 const catchAsync = require('../util/catchAsync');
+const AppError = require('../util/appError');
 
 // User Signup Function
 exports.signup = catchAsync(async (req, res, next) => {
@@ -7,18 +8,12 @@ exports.signup = catchAsync(async (req, res, next) => {
 
     // Validate required fields
     if (!email || !password || !passwordConfirm || !name) {
-        return res.status(400).json({
-            status: 'fail',
-            message: 'Please provide email, password, password confirmation, and full name'
-        });
+        return next(new AppError('Please provide email, password, password confirmation, and full name', 400));
     }
 
     // Check if passwords match
     if (password !== passwordConfirm) {
-        return res.status(400).json({
-            status: 'fail',
-            message: 'Password and password confirmation do not match'
-        });
+        return next(new AppError('Password and password confirmation do not match', 400));
     }
 
     // Sign up user with Supabase Auth
@@ -33,10 +28,7 @@ exports.signup = catchAsync(async (req, res, next) => {
     });
 
     if (error) {
-        return res.status(400).json({
-            status: 'fail',
-            message: error.message
-        });
+        return next(new AppError(error.message, 400));
     }
 
     // Success response
@@ -59,10 +51,7 @@ exports.login = catchAsync(async (req, res, next) => {
 
     // Validate required fields
     if (!email || !password) {
-        return res.status(400).json({
-            status: 'fail',
-            message: 'Please provide email and password'
-        });
+        return next(new AppError('Please provide email and password', 400));
     }
 
     // Sign in user with Supabase Auth
@@ -72,18 +61,12 @@ exports.login = catchAsync(async (req, res, next) => {
     });
 
     if (error) {
-        return res.status(401).json({
-            status: 'fail',
-            message: error.message
-        });
+        return next(new AppError(error.message, 401));
     }
 
     // Check if user is verified
     if (!data.user.email_confirmed_at) {
-        return res.status(401).json({
-            status: 'fail',
-            message: 'Please verify your email before logging in'
-        });
+        return next(new AppError('Please verify your email before logging in', 401));
     }
 
     // Success response
@@ -124,28 +107,19 @@ exports.protect = catchAsync(async (req, res, next) => {
     }
 
     if (!token) {
-        return res.status(401).json({
-            status: 'fail',
-            message: 'You are not logged in! Please login to get access'
-        });
+        return next(new AppError('You are not logged in! Please login to get access', 401));
     }
 
     // 2) Verify token with Supabase
     const { data: { user }, error } = await supabase.auth.getUser(token);
 
     if (error || !user) {
-        return res.status(401).json({
-            status: 'fail',
-            message: 'You are not logged in! Please login to get access'
-        });
+        return next(new AppError('You are not logged in! Please login to get access', 401));
     }
 
     // 3) Check if user still exists and is verified
     if (!user.email_confirmed_at) {
-        return res.status(401).json({
-            status: 'fail',
-            message: 'Please verify your email before accessing this resource'
-        });
+        return next(new AppError('Please verify your email before accessing this resource', 401));
     }
 
     // 4) Grant access to protected route
@@ -168,10 +142,7 @@ exports.restrictTo = (...roles) => {
 
         // Check if user's role is in the allowed roles
         if (!roles.includes(userRole)) {
-            return res.status(403).json({
-                status: 'fail',
-                message: 'You don\'t have permission to perform this action'
-            });
+            return next(new AppError('You don\'t have permission to perform this action', 403));
         }
 
         next();

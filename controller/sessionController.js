@@ -1,5 +1,6 @@
 const { supabase, supabaseAdmin } = require('../util/supabaseClient');
 const catchAsync = require('../util/catchAsync');
+const AppError = require('../util/appError');
 const { spawn } = require('child_process');
 const path = require('path');
 
@@ -172,6 +173,7 @@ exports.userCreateSession = catchAsync(async (req, res, next) => {
     const { data: session, error } = await supabase
         .from('sessions')
         .insert([{
+            user_id: req.user.id,
             session_token,
             ip_address: req.ip || null,
             user_agent: req.get('User-Agent') || null,
