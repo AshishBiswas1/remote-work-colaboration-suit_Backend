@@ -5,7 +5,9 @@ const {
     createSession, 
     updateSession, 
     deleteSession,
-    userCreateSession
+    userCreateSession,
+    generateSessionLink,
+    joinSessionByLink
 } = require('../controller/sessionController');
 
 const {protect, restrictTo} = require('./../controller/authController');
@@ -17,6 +19,10 @@ router.use(protect);
 
 // User chat session route (for members to create chat sessions)
 router.post('/chat/create', restrictTo('admin', 'user'), userCreateSession);
+
+// Shareable session link routes (for users to share and join sessions)
+router.post('/:sessionId/generate-link', restrictTo('admin', 'user'), generateSessionLink);
+router.get('/:sessionId/join', joinSessionByLink);
 
 // Session CRUD routes (Admin only)
 router.use(restrictTo('admin'));

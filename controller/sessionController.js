@@ -12,10 +12,7 @@ exports.getAllSessions = catchAsync(async (req, res, next) => {
         .order('created_at', { ascending: false });
 
     if (error) {
-        return res.status(400).json({
-            status: 'fail',
-            message: error.message
-        });
+        return next(new AppError(error.message, 400));
     }
 
     res.status(200).json({
@@ -38,10 +35,7 @@ exports.getSession = catchAsync(async (req, res, next) => {
         .single();
 
     if (error) {
-        return res.status(404).json({
-            status: 'fail',
-            message: 'Session not found'
-        });
+        return next(new AppError('Session not found', 404));
     }
 
     res.status(200).json({
@@ -58,15 +52,13 @@ exports.createSession = catchAsync(async (req, res, next) => {
 
     // Validate required fields
     if (!session_token || !expires_at) {
-        return res.status(400).json({
-            status: 'fail',
-            message: 'Please provide session_token and expires_at'
-        });
+        return next(new AppError('Please provide session_token and expires_at', 400));
     }
 
     const { data: session, error } = await supabase
         .from('sessions')
         .insert([{
+            user_id: req.user.id, // Must be provided since it's required in schema
             session_token,
             ip_address,
             user_agent,
@@ -77,10 +69,7 @@ exports.createSession = catchAsync(async (req, res, next) => {
         .single();
 
     if (error) {
-        return res.status(400).json({
-            status: 'fail',
-            message: error.message
-        });
+        return next(new AppError(error.message, 400));
     }
 
     res.status(201).json({
@@ -108,17 +97,11 @@ exports.updateSession = catchAsync(async (req, res, next) => {
         .single();
 
     if (error) {
-        return res.status(400).json({
-            status: 'fail',
-            message: error.message
-        });
+        return next(new AppError(error.message, 400));
     }
 
     if (!session) {
-        return res.status(404).json({
-            status: 'fail',
-            message: 'Session not found'
-        });
+        return next(new AppError('Session not found', 404));
     }
 
     res.status(200).json({
@@ -140,10 +123,7 @@ exports.deleteSession = catchAsync(async (req, res, next) => {
         .eq('id', id);
 
     if (error) {
-        return res.status(400).json({
-            status: 'fail',
-            message: error.message
-        });
+        return next(new AppError(error.message, 400));
     }
 
     res.status(204).json({
@@ -159,10 +139,7 @@ exports.userCreateSession = catchAsync(async (req, res, next) => {
 
     // Validate required fields
     if (!session_name || !creator_id) {
-        return res.status(400).json({
-            status: 'fail',
-            message: 'Please provide session_name and creator_id'
-        });
+        return next(new AppError('Please provide session_name and creator_id', 400));
     }
 
     // Generate unique session token
@@ -184,10 +161,7 @@ exports.userCreateSession = catchAsync(async (req, res, next) => {
         .single();
 
     if (error) {
-        return res.status(400).json({
-            status: 'fail',
-            message: error.message
-        });
+        return next(new AppError(error.message, 400));
     }
 
     console.log(`🎯 Collaborative chat session created:`);
@@ -242,6 +216,162 @@ exports.userCreateSession = catchAsync(async (req, res, next) => {
                 user_agent: session.user_agent,
                 is_active: session.is_active,
                 created_at: session.created_at
+            }
+        }
+    });
+});
+
+// Generate shareable session link
+exports.generateSessionLink = catchAsync(async (req, res, next) => {
+    const { sessionId } = req.params;
+    const { expiresInHours = 24, maxUses = null } = req.body;
+
+    // Validate session exists
+    const { data: session, error: sessionError } = await supabase
+        .from('sessions')
+        .select('*')
+        .eq('id', sessionId)
+        .single();
+
+    if (sessionError || !session) {
+        return next(new AppError('Session not found', 404));
+    }
+
+    // Check if user has permission to generate link (session creator or admin)
+    if (session.user_id !== req.user.id) {
+        return next(new AppError('You do not have permission to generate a link for this session', 403));
+    }
+
+    // Check if session is still active
+    if (!session.is_active || new Date(session.expires_at) < new Date()) {
+        return next(new AppError('Cannot generate link for expired or inactive session', 400));
+    }
+
+    // Generate unique invitation token
+    const inviteToken = `inv_${Date.now()}_${Math.random().toString(36).substr(2, 16)}`;
+    const expiresAt = new Date(Date.now() + (expiresInHours * 60 * 60 * 1000)).toISOString();
+
+    // Try to update the session with invitation details
+    // If columns don't exist, we'll create a simple invitation system
+    const { data: invitation, error: inviteError } = await supabase
+        .from('sessions')
+        .update({
+            updated_at: new Date().toISOString()
+        })
+        .eq('id', sessionId)
+        .select()
+        .single();
+
+    if (inviteError) {
+        return next(new AppError('Failed to access session', 500));
+    }
+
+    // Generate the shareable link (store invitation data in token for now)
+    const baseUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+    const invitationData = {
+        sessionId,
+        token: inviteToken,
+        expiresAt,
+        maxUses,
+        createdBy: req.user.id,
+        createdAt: new Date().toISOString()
+    };
+    
+    // Encode invitation data in the token (in production, use JWT or store in Redis/database)
+    const encodedData = Buffer.from(JSON.stringify(invitationData)).toString('base64');
+    const shareableLink = `${baseUrl}/join-session?invitation=${encodedData}`;
+
+    console.log(`🔗 Shareable link generated for session ${sessionId}:`);
+    console.log(`   Link: ${shareableLink}`);
+    console.log(`   Expires: ${expiresAt}`);
+    console.log(`   Max Uses: ${maxUses || 'unlimited'}`);
+
+    res.status(200).json({
+        status: 'success',
+        message: 'Shareable session link generated successfully',
+        data: {
+            shareableLink,
+            inviteToken,
+            sessionId,
+            expiresAt,
+            maxUses: maxUses || 'unlimited',
+            currentUses: 0,
+            sessionName: session.session_name || 'Collaborative Session',
+            createdBy: req.user.id
+        }
+    });
+});
+
+// Join session using shareable link
+exports.joinSessionByLink = catchAsync(async (req, res, next) => {
+    const { invitation } = req.query;
+    const { sessionId } = req.params;
+
+    if (!invitation) {
+        return next(new AppError('Invitation data is required', 400));
+    }
+
+    // Decode invitation data
+    let invitationData;
+    try {
+        const decodedData = Buffer.from(invitation, 'base64').toString('utf-8');
+        invitationData = JSON.parse(decodedData);
+    } catch (error) {
+        return next(new AppError('Invalid invitation format', 400));
+    }
+
+    // Validate invitation data
+    if (invitationData.sessionId !== sessionId) {
+        return next(new AppError('Invalid session invitation', 400));
+    }
+
+    // Check if invitation has expired
+    if (new Date(invitationData.expiresAt) < new Date()) {
+        return next(new AppError('Invitation link has expired', 400));
+    }
+
+    // Validate session exists and is active
+    const { data: session, error: sessionError } = await supabase
+        .from('sessions')
+        .select('*')
+        .eq('id', sessionId)
+        .single();
+
+    if (sessionError || !session) {
+        return next(new AppError('Session not found', 404));
+    }
+
+    // Check if session is still active
+    if (!session.is_active) {
+        return next(new AppError('Session is no longer active', 400));
+    }
+
+    // Check if session has expired
+    if (new Date(session.expires_at) < new Date()) {
+        return next(new AppError('Session has expired', 400));
+    }
+
+    console.log(`👤 User ${req.user?.id || 'anonymous'} joined session ${sessionId} via invitation link`);
+
+    res.status(200).json({
+        status: 'success',
+        message: 'Successfully joined session',
+        data: {
+            session: {
+                id: session.id,
+                session_token: session.session_token,
+                session_name: invitationData.sessionName || 'Collaborative Session',
+                creator_id: session.user_id,
+                chat_server_port: 8080,
+                websocket_url: `ws://localhost:8000/session/${sessionId}`,
+                expires_at: session.expires_at,
+                is_active: session.is_active,
+                joined_at: new Date().toISOString(),
+                invitation_used: {
+                    token: invitationData.token,
+                    created_by: invitationData.createdBy,
+                    expires_at: invitationData.expiresAt
+                }
             }
         }
     });

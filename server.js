@@ -16,7 +16,10 @@ process.on('uncaughtException', err => {
 // Import app
 const app = require('./app');
 const { createServer } = require('http');
+const socketIo = require('socket.io');
 const WebRTCSignalingServer = require('./controller/webrtcSignaling');
+const VideoCallSignaling = require('./controller/videoCallSignaling');
+const ChatController = require('./controller/chatController');
 
 // Environment variables
 const PORT = process.env.PORT || 8000;
@@ -25,23 +28,72 @@ const NODE_ENV = process.env.NODE_ENV || 'development';
 // Create HTTP server with Express app
 const server = createServer(app);
 
+// Configure Socket.IO with CORS
+const io = socketIo(server, {
+  path: '/socket.io/',
+  cors: {
+    origin: [
+      "http://localhost:5173",
+      "http://localhost:3000"
+    ],
+    methods: ["GET", "POST"],
+    credentials: true,
+    allowedHeaders: ["Content-Type", "Authorization"]
+  },
+  transports: ['websocket', 'polling'],
+  allowEIO3: true
+});
+
+// Add Socket.IO error handling
+io.on('error', (error) => {
+  console.error('❌ Socket.IO server error:', error);
+});
+
+io.engine.on('connection_error', (err) => {
+  console.error('❌ Socket.IO connection error:', err.req);
+  console.error('❌ Error code:', err.code);
+  console.error('❌ Error message:', err.message);
+  console.error('❌ Error context:', err.context);
+});
+
+// Initialize chat controller with Socket.IO
+const { activeRooms, userSessions } = ChatController.initializeSocketIO(io);
+
 // Initialize WebRTC signaling server for collaborative features
 const webrtcServer = new WebRTCSignalingServer();
+
+// Initialize socket-based video call signaling (join/offer/answer/ice)
+const videoSignaling = VideoCallSignaling.initialize(io);
 
 // Start server
 server.listen(PORT, () => {
   console.log(`🚀 Server running in ${NODE_ENV} mode on port ${PORT}`);
   console.log(`📡 Main API: http://localhost:${PORT}`);
   console.log(`🔗 WebRTC Signaling: ws://localhost:${PORT}/yjs-ws`);
-  console.log(`💬 Chat Server: Socket.IO on port 8080 (when session created)`);
+  console.log(`💬 Socket.IO Chat: http://localhost:${PORT}/socket.io/`);
   console.log(`📝 Collaborative Editing: Y.js + WebRTC ready`);
   console.log(`📊 Stats API: http://localhost:${PORT}/api/collab/webrtc/stats`);
+  console.log(`💬 Chat API: http://localhost:${PORT}/api/collab/chat`);
   
-  // Initialize WebRTC signaling server
-  webrtcServer.initialize(server, '/yjs-ws');
+  // Initialize WebRTC signaling server first
+  try {
+    webrtcServer.initialize(server, '/yjs-ws');
+    console.log('✅ WebRTC signaling server initialized successfully');
+  } catch (error) {
+    console.error('❌ Failed to initialize WebRTC server:', error);
+  }
   
-  // Make webrtcServer available to Express app for API endpoints
+  // Make webrtcServer and chat data available to Express app for API endpoints
   app.set('webrtcServer', webrtcServer);
+  app.set('activeRooms', activeRooms);
+  app.set('userSessions', userSessions);
+  
+  // Make chat data globally available for chat API
+  global.activeRooms = activeRooms;
+  global.userSessions = userSessions;
+  
+  console.log('✅ Socket.IO chat server ready for connections');
+  console.log('🎯 Frontend should connect to: http://localhost:8000');
 });
 
 // Handle unhandled promise rejections
@@ -75,4 +127,4 @@ process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
 process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 
 // Export for testing and API integration
-module.exports = { server, webrtcServer };
+module.exports = { server, webrtcServer, io };

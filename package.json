@@ -5,14 +5,13 @@
   "main": "app.js",
   "scripts": {
     "start:dev": "nodemon server.js",
-    "start": "node server.js"
+    "start": "nodemon server.js"
   },
   "keywords": [],
   "author": "Ashish Biswas",
   "license": "ISC",
   "dependencies": {
     "@supabase/supabase-js": "^2.58.0",
-    "bcryptjs": "^3.0.2",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",
@@ -20,17 +19,10 @@
     "express-rate-limit": "^8.1.0",
     "helmet": "^8.1.0",
     "hpp": "^0.2.3",
-    "jsonwebtoken": "^9.0.2",
     "morgan": "^1.10.1",
-    "multer": "^2.0.2",
-    "nodemailer": "^7.0.6",
     "socket.io": "^4.8.1",
-    "socket.io-client": "^4.8.1",
     "uuid": "^13.0.0",
-    "ws": "^8.18.3",
-    "y-webrtc": "^10.3.0",
-    "y-websocket": "^3.0.0",
-    "yjs": "^13.6.27"
+    "ws": "^8.18.3"
   },
   "devDependencies": {
     "nodemon": "^3.1.10"

@@ -11,6 +11,7 @@ require('dotenv').config({ path: './Config.env' });
 const userRouter = require('./Router/userRouter');
 const sessionRouter = require('./Router/sessionRouter');
 const { router: documentRouter } = require('./Router/documentRouter');
+const chatRouter = require('./Router/chatRouter');
 
 // Error handling
 const { globalErrorHandler } = require('./controller/errorController');
@@ -116,6 +117,7 @@ app.get('/api/collab/webrtc/stats', (req, res) => {
 app.use('/api/collab/user', userRouter);
 app.use('/api/collab/session', sessionRouter);
 app.use('/api/collab/document', documentRouter);
+app.use('/api/collab/chat', chatRouter);
 
 // Global error handling middleware
 app.use(globalErrorHandler);
