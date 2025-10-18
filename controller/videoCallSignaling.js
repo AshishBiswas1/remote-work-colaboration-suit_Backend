@@ -16,13 +16,18 @@
 module.exports = {
   initialize: function (io) {
     const rooms = new Map(); // roomId -> Set of socket ids
+    const userMetadata = new Map(); // socketId -> user data
 
     io.on('connection', (socket) => {
-      console.log(`📶 Socket connected: ${socket.id}`);
 
       socket.on('join-call', ({ roomId, user }) => {
         try {
           if (!roomId) return;
+
+          // Store user metadata for this socket
+          if (user) {
+            userMetadata.set(socket.id, user);
+          }
 
           // Join socket.io room for convenience
           socket.join(roomId);
@@ -31,11 +36,10 @@ module.exports = {
           if (!rooms.has(roomId)) rooms.set(roomId, new Set());
           const members = rooms.get(roomId);
 
-          // Build list of existing peers
+          // Build list of existing peers with their user metadata
           const existingPeers = Array.from(members).map((peerId) => ({
             peerId,
-            // we don't have user metadata for existing peers here unless tracked separately
-            user: undefined,
+            user: userMetadata.get(peerId) || undefined,
           }));
 
           // Send existing peers to the joining socket
@@ -45,9 +49,8 @@ module.exports = {
           socket.to(roomId).emit('new-peer', { peerId: socket.id, user });
 
           members.add(socket.id);
-          console.log(`➡️ ${socket.id} joined room ${roomId} (members=${members.size})`);
         } catch (error) {
-          console.error('Error in join-call:', error);
+          // Error handling
         }
       });
 
@@ -77,19 +80,20 @@ module.exports = {
       });
 
       socket.on('disconnect', () => {
+        // Remove user metadata
+        userMetadata.delete(socket.id);
+        
         // Remove from any rooms
         for (const [roomId, members] of rooms.entries()) {
           if (members.has(socket.id)) {
             members.delete(socket.id);
             socket.to(roomId).emit('peer-left', { peerId: socket.id });
             if (members.size === 0) rooms.delete(roomId);
-            console.log(`⬅️ ${socket.id} left room ${roomId}`);
           }
         }
       });
     });
 
-    console.log('✅ Video call signaling initialized');
     return { rooms };
   }
 };

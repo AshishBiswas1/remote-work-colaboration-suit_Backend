@@ -2,14 +2,11 @@ require('dotenv').config({ path: './Config.env' });
 
 // Check if DATABASE is loaded correctly
 if(!process.env.SUPABASE_URL || !process.env.SUPABASE_ANON_KEY || !process.env.SUPABASE_SERVICE_KEY) {
-    console.error('DATABASE_URL or DATABASE_KEYS are missing in the .env file!');
     process.exit(1);
 }
 
 // Handling uncaught exceptions
 process.on('uncaughtException', err => {
-  console.log('UNCAUGHT EXCEPTION! 💥 Shutting down...');
-  console.error(err);
   process.exit(1);
 });
 
@@ -46,14 +43,11 @@ const io = socketIo(server, {
 
 // Add Socket.IO error handling
 io.on('error', (error) => {
-  console.error('❌ Socket.IO server error:', error);
+  // Error handling
 });
 
 io.engine.on('connection_error', (err) => {
-  console.error('❌ Socket.IO connection error:', err.req);
-  console.error('❌ Error code:', err.code);
-  console.error('❌ Error message:', err.message);
-  console.error('❌ Error context:', err.context);
+  // Error handling
 });
 
 // Initialize chat controller with Socket.IO
@@ -67,20 +61,12 @@ const videoSignaling = VideoCallSignaling.initialize(io);
 
 // Start server
 server.listen(PORT, () => {
-  console.log(`🚀 Server running in ${NODE_ENV} mode on port ${PORT}`);
-  console.log(`📡 Main API: http://localhost:${PORT}`);
-  console.log(`🔗 WebRTC Signaling: ws://localhost:${PORT}/yjs-ws`);
-  console.log(`💬 Socket.IO Chat: http://localhost:${PORT}/socket.io/`);
-  console.log(`📝 Collaborative Editing: Y.js + WebRTC ready`);
-  console.log(`📊 Stats API: http://localhost:${PORT}/api/collab/webrtc/stats`);
-  console.log(`💬 Chat API: http://localhost:${PORT}/api/collab/chat`);
   
   // Initialize WebRTC signaling server first
   try {
     webrtcServer.initialize(server, '/yjs-ws');
-    console.log('✅ WebRTC signaling server initialized successfully');
   } catch (error) {
-    console.error('❌ Failed to initialize WebRTC server:', error);
+    // Error handling
   }
   
   // Make webrtcServer and chat data available to Express app for API endpoints
@@ -92,14 +78,10 @@ server.listen(PORT, () => {
   global.activeRooms = activeRooms;
   global.userSessions = userSessions;
   
-  console.log('✅ Socket.IO chat server ready for connections');
-  console.log('🎯 Frontend should connect to: http://localhost:8000');
 });
 
 // Handle unhandled promise rejections
 process.on('unhandledRejection', err => {
-  console.log('UNHANDLED REJECTION! 💥 Shutting down...');
-  console.error(err);
   
   // Gracefully shutdown WebRTC server
   webrtcServer.shutdown();
@@ -111,14 +93,12 @@ process.on('unhandledRejection', err => {
 
 // Handle SIGTERM and SIGINT for graceful shutdown
 const gracefulShutdown = (signal) => {
-  console.log(`\n${signal} received. Starting graceful shutdown...`);
   
   // Close WebRTC signaling server
   webrtcServer.shutdown();
   
   // Close HTTP server
   server.close(() => {
-    console.log('✅ Server shut down successfully');
     process.exit(0);
   });
 };
