@@ -48,7 +48,7 @@ exports.getSession = catchAsync(async (req, res, next) => {
 
 // Create new session
 exports.createSession = catchAsync(async (req, res, next) => {
-    const { session_token, ip_address, user_agent, expires_at } = req.body;
+    const { session_token, ip_address, user_agent, expires_at, session_name } = req.body;
 
     // Validate required fields
     if (!session_token || !expires_at) {
@@ -60,6 +60,7 @@ exports.createSession = catchAsync(async (req, res, next) => {
         .insert([{
             user_id: req.user.id, // Must be provided since it's required in schema
             session_token,
+            session_name,
             ip_address,
             user_agent,
             expires_at,
@@ -152,6 +153,7 @@ exports.userCreateSession = catchAsync(async (req, res, next) => {
         .insert([{
             user_id: req.user.id,
             session_token,
+            session_name,
             ip_address: req.ip || null,
             user_agent: req.get('User-Agent') || null,
             expires_at,
@@ -207,7 +209,7 @@ exports.userCreateSession = catchAsync(async (req, res, next) => {
             session: {
                 id: session.id,
                 session_token: session_token,
-                session_name,
+                session_name: session_name,
                 creator_id,
                 max_participants: max_participants || 'unlimited',
                 chat_server_port: 8080,
@@ -360,7 +362,7 @@ exports.joinSessionByLink = catchAsync(async (req, res, next) => {
             session: {
                 id: session.id,
                 session_token: session.session_token,
-                session_name: invitationData.sessionName || 'Collaborative Session',
+                session_name: session.session_name || 'Collaborative Session',
                 creator_id: session.user_id,
                 chat_server_port: 8080,
                 websocket_url: `ws://localhost:8000/session/${sessionId}`,

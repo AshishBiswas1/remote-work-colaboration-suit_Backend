@@ -7,6 +7,9 @@ if(!process.env.SUPABASE_URL || !process.env.SUPABASE_ANON_KEY || !process.env.S
 
 // Handling uncaught exceptions
 process.on('uncaughtException', err => {
+  console.error('💥 UNCAUGHT EXCEPTION! Shutting down...');
+  console.error('Error:', err.name, err.message);
+  console.error('Stack:', err.stack);
   process.exit(1);
 });
 
@@ -61,12 +64,14 @@ const videoSignaling = VideoCallSignaling.initialize(io);
 
 // Start server
 server.listen(PORT, () => {
+  console.log(`🚀 Server running on port ${PORT} in ${NODE_ENV} mode`);
+  console.log(`📡 API Base: http://localhost:${PORT}`);
   
   // Initialize WebRTC signaling server first
   try {
     webrtcServer.initialize(server, '/yjs-ws');
   } catch (error) {
-    // Error handling
+    console.error('❌ Failed to initialize WebRTC server:', error);
   }
   
   // Make webrtcServer and chat data available to Express app for API endpoints
@@ -82,6 +87,9 @@ server.listen(PORT, () => {
 
 // Handle unhandled promise rejections
 process.on('unhandledRejection', err => {
+  console.error('💥 UNHANDLED REJECTION! Shutting down...');
+  console.error('Error:', err?.name, err?.message);
+  console.error('Stack:', err?.stack);
   
   // Gracefully shutdown WebRTC server
   webrtcServer.shutdown();

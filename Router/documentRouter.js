@@ -30,46 +30,46 @@ router.get('/test', (req, res) => {
  * POST /create - Create new collaborative document session
  * Body: { document_name, document_type?, max_editors?, is_public? }
  */
-router.post('/create', (req, res) => {
-    docController.createDocumentSession(req, res);
+router.post('/create', (req, res, next) => {
+    docController.createDocumentSession(req, res, next);
 });
 
 /**
  * POST /join/:sessionId - Join existing document session
  * Params: { sessionId }
  */
-router.post('/join/:sessionId', (req, res) => {
-    docController.joinDocumentSession(req, res);
+router.post('/join/:sessionId', (req, res, next) => {
+    docController.joinDocumentSession(req, res, next);
 });
 
 /**
  * GET /:sessionId - Get document session details
  * Params: { sessionId }
  */
-router.get('/:sessionId', (req, res) => {
-    docController.getDocumentSession(req, res);
+router.get('/:sessionId', (req, res, next) => {
+    docController.getDocumentSession(req, res, next);
 });
 
 /**
  * DELETE /:sessionId/leave - Leave document session
  * Params: { sessionId }
  */
-router.delete('/:sessionId/leave', (req, res) => {
-    docController.leaveDocumentSession(req, res);
+router.delete('/:sessionId/leave', (req, res, next) => {
+    docController.leaveDocumentSession(req, res, next);
 });
 
 /**
  * GET /user/sessions - Get user's active document sessions
  */
-router.get('/user/sessions', (req, res) => {
-    docController.getUserDocumentSessions(req, res);
+router.get('/user/sessions', (req, res, next) => {
+    docController.getUserDocumentSessions(req, res, next);
 });
 
 /**
  * GET /public/sessions - Get public document sessions
  */
-router.get('/public/sessions', (req, res) => {
-    docController.getAllDocumentSessions(req, res);
+router.get('/public/sessions', (req, res, next) => {
+    docController.getAllDocumentSessions(req, res, next);
 });
 
 /**
