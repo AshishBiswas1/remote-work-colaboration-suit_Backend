@@ -20,6 +20,7 @@ const socketIo = require('socket.io');
 const WebRTCSignalingServer = require('./controller/webrtcSignaling');
 const VideoCallSignaling = require('./controller/videoCallSignaling');
 const ChatController = require('./controller/chatController');
+const TaskBoardController = require('./controller/taskBoardController');
 
 // Environment variables
 const PORT = process.env.PORT || 8000;
@@ -55,6 +56,9 @@ io.engine.on('connection_error', (err) => {
 
 // Initialize chat controller with Socket.IO
 const { activeRooms, userSessions } = ChatController.initializeSocketIO(io);
+
+// Initialize TaskBoard controller with Socket.IO
+TaskBoardController.initializeSocketIO(io);
 
 // Initialize WebRTC signaling server for collaborative features
 const webrtcServer = new WebRTCSignalingServer();
