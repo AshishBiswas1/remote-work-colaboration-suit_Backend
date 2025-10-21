@@ -18,6 +18,8 @@ class DocumentCollaborationController {
     this.activeSessions = new Map(); // sessionId -> session data
     this.documentRooms = new Map(); // documentId -> room data
     this.userSessions = new Map(); // userId -> active sessions
+    this.WS_BASE = process.env.WS_BASE_URL || `ws://localhost:8000`;
+    this.API_BASE = process.env.API_BASE_URL || `http://localhost:8000`;
   }
 
   /**
@@ -71,8 +73,8 @@ class DocumentCollaborationController {
         document_name,
         document_type,
         max_editors: sessionData.max_editors,
-        websocket_url: `ws://localhost:8000/yjs-ws?room=${documentId}`,
-        rest_api_url: `http://localhost:8000/api/collab/document/${sessionId}`,
+        websocket_url: `${this.WS_BASE}/yjs-ws?room=${documentId}`,
+        rest_api_url: `${this.API_BASE}/api/collab/document/${sessionId}`,
         created_at: sessionData.created_at,
         creator_id: userId,
         participants_count: 1
@@ -110,7 +112,7 @@ class DocumentCollaborationController {
           sessionId: session.sessionId,
           documentId: session.documentId,
           document_name: session.document_name,
-          websocket_url: `ws://localhost:8000/yjs-ws?room=${session.documentId}`,
+          websocket_url: `${this.WS_BASE}/yjs-ws?room=${session.documentId}`,
           participants_count: session.participants.size
         }
       });
@@ -133,7 +135,7 @@ class DocumentCollaborationController {
         documentId: session.documentId,
         document_name: session.document_name,
         document_type: session.document_type,
-        websocket_url: `ws://localhost:8000/yjs-ws?room=${session.documentId}`,
+        websocket_url: `${this.WS_BASE}/yjs-ws?room=${session.documentId}`,
         participants_count: session.participants.size,
         max_editors: session.max_editors
       }
@@ -165,7 +167,7 @@ class DocumentCollaborationController {
         is_public: session.is_public,
         created_at: session.created_at,
         participants_count: session.participants.size,
-        websocket_url: `ws://localhost:8000/yjs-ws?room=${session.documentId}`,
+        websocket_url: `${this.WS_BASE}/yjs-ws?room=${session.documentId}`,
         status: session.status
       }
     });
