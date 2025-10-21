@@ -232,7 +232,7 @@ class DocumentCollaborationController {
         created_at: session.created_at,
         participants_count: session.participants.size,
         is_creator: session.creator_id === userId,
-        websocket_url: `ws://localhost:8000/yjs-ws?room=${session.documentId}`
+        websocket_url: `${this.WS_BASE}/yjs-ws?room=${session.documentId}`
       }));
 
     res.status(200).json({
