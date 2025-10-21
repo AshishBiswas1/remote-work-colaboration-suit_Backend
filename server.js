@@ -73,13 +73,16 @@ const wss = new WebSocket.Server({ server, path: '/yjs-ws' });
 
 wss.on('connection', (ws, req) => {
   const clientIp = req.socket.remoteAddress;
-  const url = req.url || '/';
-  console.log(`📡 New client connected to Y.js room "${url}" from: ${clientIp}`);
+  const originalUrl = req.url;
+  // Extract room from URL: /yjs-ws/room -> /room
+  req.url = req.url.replace('/yjs-ws', '') || '/';
+  const roomName = req.url.slice(1); // Remove leading /
+  console.log(`📡 New client connected to Y.js room "${roomName}" from: ${clientIp}`);
   
   setupWSConnection(ws, req);
   
   ws.on('close', () => {
-    console.log(`📴 Client disconnected from Y.js room "${url}": ${clientIp}`);
+    console.log(`📴 Client disconnected from Y.js room "${roomName}": ${clientIp}`);
   });
 });
 
