@@ -26,11 +26,6 @@ let connectedClients = new Map();
 let allClients = new Map(); // Track all clients who have ever connected
 let clientCount = 0;
 
-console.log('🖥️  Chat Server started on port 8080');
-console.log(`📊 Session: ${SESSION_NAME} (ID: ${SESSION_ID})`);
-console.log(`👤 Creator: ${CREATOR_ID}`);
-console.log(`👥 Max Participants: ${MAX_PARTICIPANTS === 'unlimited' ? 'Unlimited' : MAX_PARTICIPANTS}`);
-console.log('Waiting for clients to connect...\n');
 
 // Handle client connections
 io.on('connection', (socket) => {
@@ -59,7 +54,6 @@ io.on('connection', (socket) => {
         connection_count: (previousData.connection_count || 1) + 1
       });
       
-      console.log(`🔄 Client rejoined: ${userId} (Socket: ${socket.id})`);
       
       // Send rejoin confirmation
       socket.emit('rejoin-success', {
@@ -86,7 +80,6 @@ io.on('connection', (socket) => {
 
   // Check participant limit (only if not unlimited and not rejoining)
   if (!clientData.isRejoining && MAX_PARTICIPANTS !== 'unlimited' && clientCount >= parseInt(MAX_PARTICIPANTS)) {
-    console.log(`❌ Connection rejected: Maximum participants (${MAX_PARTICIPANTS}) reached`);
     socket.emit('error', { message: 'Session is full. Maximum participants reached.' });
     socket.disconnect();
     return;
@@ -108,8 +101,6 @@ io.on('connection', (socket) => {
   clientCount++;
   connectedClients.set(socket.id, clientData);
 
-  console.log(`✅ Client ${clientData.isRejoining ? 'rejoined' : 'connected'}: ${clientData.userId} (Socket: ${socket.id})`);
-  console.log(`👥 Total clients: ${clientCount}/${MAX_PARTICIPANTS === 'unlimited' ? '∞' : MAX_PARTICIPANTS}`);
   
   if (!clientData.isRejoining) {
     // Notify all clients about new user (only for new connections)
@@ -132,7 +123,6 @@ io.on('connection', (socket) => {
     const client = connectedClients.get(socket.id);
     const userId = client ? client.userId : socket.id.slice(-4);
     
-    console.log(`📱 ${userId}: ${data.message}`);
     
     // Broadcast message to all other clients
     socket.broadcast.emit('message', {
@@ -171,8 +161,6 @@ io.on('connection', (socket) => {
       });
     }
     
-    console.log(`❌ Client disconnected: ${userId} (Socket: ${socket.id})`);
-    console.log(`👥 Total clients: ${clientCount}/${MAX_PARTICIPANTS === 'unlimited' ? '∞' : MAX_PARTICIPANTS}`);
     
     // Notify remaining clients
     socket.broadcast.emit('user-left', {
@@ -196,9 +184,7 @@ function broadcastMessage(message) {
       from: 'Server',
       timestamp: new Date().toISOString()
     });
-    console.log(`🖥️  Server: ${message}`);
   } else {
-    console.log('❌ No clients connected');
   }
 }
 
@@ -207,7 +193,6 @@ rl.on('line', (input) => {
   if (input.trim() === '') return;
  
   if (input.toLowerCase() === 'quit' || input.toLowerCase() === 'exit') {
-    console.log('👋 Server shutting down...');
     io.emit('message', { message: 'Server is shutting down. Goodbye!' });
     setTimeout(() => {
       io.close();
@@ -217,17 +202,10 @@ rl.on('line', (input) => {
   }
 
   if (input.toLowerCase() === 'status') {
-    console.log(`📊 Chat Session Status:`);
-    console.log(`   Session: ${SESSION_NAME}`);
-    console.log(`   Connected Clients: ${clientCount}`);
-    console.log(`   Max Participants: ${MAX_PARTICIPANTS === 'unlimited' ? 'Unlimited' : MAX_PARTICIPANTS}`);
-    console.log(`   Total Clients (Ever): ${allClients.size}`);
     
     if (allClients.size > 0) {
-      console.log(`   Client History:`);
       allClients.forEach((client, userId) => {
         const status = client.currentSocketId ? '🟢 Connected' : '🔴 Disconnected';
-        console.log(`     - ${userId}: ${status} (Connections: ${client.connection_count})`);
       });
     }
     return;
@@ -238,7 +216,6 @@ rl.on('line', (input) => {
 
 // Handle server shutdown
 process.on('SIGINT', () => {
-  console.log('\n👋 Server shutting down...');
   io.emit('message', { message: 'Server is shutting down. Goodbye!' });
   setTimeout(() => {
     io.close();
@@ -246,10 +223,5 @@ process.on('SIGINT', () => {
   }, 1000);
 });
 
-console.log('Commands:');
-console.log('- Type any message and press Enter to broadcast to all clients');
-console.log('- Type "status" to check current session status');
-console.log('- Type "quit" or "exit" to close the server');
-console.log('- Press Ctrl+C to force quit\n');
 
 module.exports = { io, broadcastMessage };

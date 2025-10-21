@@ -17,7 +17,6 @@ class ChatController {
    */
   static initializeSocketIO(io) {
     io.on('connection', (socket) => {
-      console.log('✅ New Socket.IO client connected:', socket.id);
 
       // Handle connection errors
       socket.on('connect_error', (error) => {
@@ -27,7 +26,6 @@ class ChatController {
       // Handle user joining a room
       socket.on('join-room', async ({ roomId, user }) => {
         try {
-          console.log(`👥 User ${user.name} (${user.id}) joining room ${roomId}`);
           
           // Leave any previous rooms
           const previousSession = userSessions.get(socket.id);
@@ -73,7 +71,6 @@ class ChatController {
             onlineUsers: Array.from(roomData.users.values())
           });
           
-          console.log(`📊 Room ${roomId} now has ${roomData.users.size} users`);
         } catch (error) {
           console.error('❌ Error joining room:', error);
           socket.emit('error', { message: 'Failed to join room', error: error.message });
@@ -83,7 +80,6 @@ class ChatController {
       // Handle sending messages
       socket.on('send-message', async ({ roomId, message, user }) => {
         try {
-          console.log(`💬 Message from ${user.name} in room ${roomId}:`, message);
           
           const messageData = {
             id: Date.now().toString() + '-' + Math.random().toString(36).substr(2, 9),
@@ -169,7 +165,6 @@ class ChatController {
 
       // Handle disconnection
       socket.on('disconnect', async () => {
-        console.log('🔌 Client disconnected:', socket.id);
         
         const sessionData = userSessions.get(socket.id);
         if (sessionData) {
@@ -187,7 +182,6 @@ class ChatController {
     global.activeRooms = activeRooms;
     global.userSessions = userSessions;
 
-    console.log('✅ Chat controller initialized with Socket.IO');
     return { activeRooms, userSessions };
   }
 
@@ -220,10 +214,8 @@ class ChatController {
         if (roomData.users.size === 0) {
           activeRooms.delete(roomId);
           typingUsers.delete(roomId);
-          console.log(`🧹 Room ${roomId} cleaned up - no users remaining`);
         }
         
-        console.log(`👋 User ${user.name} left room ${roomId}`);
       }
       
       socket.leave(roomId);
@@ -272,7 +264,6 @@ class ChatController {
         console.error('❌ Error saving message to database:', error);
         // Don't throw error - message still works in memory
       } else {
-        console.log('💾 Message saved to database:', messageData.id);
       }
     } catch (error) {
       console.error('❌ Database error:', error);
@@ -309,7 +300,6 @@ class ChatController {
         roomId: msg.room_id
       }));
 
-      console.log(`📜 Loaded ${messages.length} messages for room ${roomId}`);
       return messages;
     } catch (error) {
       console.error('❌ Database error:', error);

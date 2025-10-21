@@ -62,8 +62,6 @@ class DocumentCollaborationController {
     }
     this.userSessions.get(userId).add(sessionId);
 
-    console.log(`📝 Document session created: ${sessionId}`);
-    console.log(`📄 Document: ${document_name} (${documentId})`);
 
     res.status(201).json({
       status: 'success',
@@ -127,7 +125,6 @@ class DocumentCollaborationController {
     }
     this.userSessions.get(userId).add(sessionId);
 
-    console.log(`👤 User ${userId} joined document session: ${sessionId}`);
 
     res.status(200).json({
       status: 'success',
@@ -197,12 +194,10 @@ class DocumentCollaborationController {
       this.userSessions.get(userId).delete(sessionId);
     }
 
-    console.log(`👤 User ${userId} left document session: ${sessionId}`);
 
     // If no participants left and not the creator, mark as inactive
     if (session.participants.size === 0 && session.creator_id !== userId) {
       session.status = 'inactive';
-      console.log(`📄 Document session marked inactive: ${sessionId}`);
     }
 
     res.status(200).json({

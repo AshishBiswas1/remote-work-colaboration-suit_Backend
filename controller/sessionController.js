@@ -166,11 +166,6 @@ exports.userCreateSession = catchAsync(async (req, res, next) => {
         return next(new AppError(error.message, 400));
     }
 
-    console.log(`🎯 Collaborative chat session created:`);
-    console.log(`   Session ID: ${session.id}`);
-    console.log(`   Session Name: ${session_name}`);
-    console.log(`   Creator: ${creator_id}`);
-    console.log(`   Token: ${session_token}`);
 
     // Start the chat feature server
     try {
@@ -187,7 +182,6 @@ exports.userCreateSession = catchAsync(async (req, res, next) => {
             }
         });
 
-        console.log(`🚀 Chat server started for session ${session.id}`);
 
         // Handle chat process events
         chatProcess.on('error', (error) => {
@@ -195,7 +189,6 @@ exports.userCreateSession = catchAsync(async (req, res, next) => {
         });
 
         chatProcess.on('exit', (code) => {
-            console.log(`Chat process exited with code ${code}`);
         });
 
     } catch (error) {
@@ -283,10 +276,6 @@ exports.generateSessionLink = catchAsync(async (req, res, next) => {
     const encodedData = Buffer.from(JSON.stringify(invitationData)).toString('base64');
     const shareableLink = `${baseUrl}/join-session?invitation=${encodedData}`;
 
-    console.log(`🔗 Shareable link generated for session ${sessionId}:`);
-    console.log(`   Link: ${shareableLink}`);
-    console.log(`   Expires: ${expiresAt}`);
-    console.log(`   Max Uses: ${maxUses || 'unlimited'}`);
 
     res.status(200).json({
         status: 'success',
@@ -353,7 +342,6 @@ exports.joinSessionByLink = catchAsync(async (req, res, next) => {
         return next(new AppError('Session has expired', 400));
     }
 
-    console.log(`👤 User ${req.user?.id || 'anonymous'} joined session ${sessionId} via invitation link`);
 
     res.status(200).json({
         status: 'success',

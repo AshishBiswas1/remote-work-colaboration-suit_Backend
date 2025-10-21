@@ -36,8 +36,6 @@ class WebRTCSignalingServer {
       }
     });
 
-    console.log(`🔗 WebRTC Signaling Server initialized on ${path}`);
-    console.log('📝 Y.js collaborative editing ready');
 
     this.setupEventHandlers();
     return this.wss;
@@ -52,8 +50,6 @@ class WebRTCSignalingServer {
       const url = new URL(req.url, `http://${req.headers.host}`);
       const roomName = url.searchParams.get('room') || 'default';
       
-      console.log(`🔌 New WebSocket connection: ${connectionId}`);
-      console.log(`📁 Joining room: ${roomName}`);
       
       // Add to room
       if (!this.documentRooms.has(roomName)) {
@@ -88,7 +84,6 @@ class WebRTCSignalingServer {
 
       // Handle connection close
       ws.on('close', () => {
-        console.log(`❌ WebSocket connection closed: ${connectionId}`);
         this.handleDisconnection(connectionId, roomName, ws);
       });
 
@@ -130,7 +125,6 @@ class WebRTCSignalingServer {
       // Clean up empty rooms
       if (this.documentRooms.get(roomName).size === 0) {
         this.documentRooms.delete(roomName);
-        console.log(`🗑️  Empty room cleaned up: ${roomName}`);
       }
     }
   }
@@ -189,7 +183,6 @@ class WebRTCSignalingServer {
    * Close all connections and shutdown server
    */
   shutdown() {
-    console.log('🛑 Shutting down WebRTC Signaling Server...');
     
     if (this.wss) {
       this.wss.clients.forEach(ws => {
@@ -199,7 +192,6 @@ class WebRTCSignalingServer {
       });
       
       this.wss.close(() => {
-        console.log('✅ WebRTC Signaling Server shut down successfully');
       });
     }
 
