@@ -75,9 +75,9 @@ router.get('/public/sessions', (req, res, next) => {
 /**
  * GET /admin/stats - Get collaboration statistics (admin only)
  */
-router.get('/admin/stats', restrictTo('admin'), (req, res) => {
+router.get('/admin/stats', restrictTo('admin'), async (req, res) => {
     try {
-        const stats = docController.getStats();
+        const stats = await docController.getStats();
         res.status(200).json({
             status: 'success',
             data: {

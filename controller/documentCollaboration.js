@@ -8,6 +8,7 @@
 const { v4: uuidv4 } = require('uuid');
 const AppError = require('../util/appError');
 const catchAsync = require('../util/catchAsync');
+const { supabaseAdmin } = require('../util/supabaseClient');
 
 /**
  * Document collaboration controller
@@ -15,9 +16,6 @@ const catchAsync = require('../util/catchAsync');
  */
 class DocumentCollaborationController {
   constructor() {
-    this.activeSessions = new Map(); // sessionId -> session data
-    this.documentRooms = new Map(); // documentId -> room data
-    this.userSessions = new Map(); // userId -> active sessions
     this.WS_BASE = process.env.WS_BASE_URL || `ws://localhost:8000`;
     this.API_BASE = process.env.API_BASE_URL || `http://localhost:8000`;
   }
@@ -41,29 +39,28 @@ class DocumentCollaborationController {
     
     // Create session data
     const sessionData = {
-      sessionId,
-      documentId,
+      session_id: sessionId,
+      document_id: documentId,
       document_name,
       document_type,
       creator_id: userId,
       max_editors: max_editors || 'unlimited',
       is_public,
       created_at: new Date().toISOString(),
-      participants: new Set([userId]),
+      participants: [userId],
       websocket_room: documentId,
       status: 'active'
     };
 
-    // Store session
-    this.activeSessions.set(sessionId, sessionData);
-    this.documentRooms.set(documentId, sessionData);
+    // Insert into Supabase
+    const { data, error } = await supabaseAdmin
+      .from('document_sessions')
+      .insert(sessionData);
 
-    // Track user sessions
-    if (!this.userSessions.has(userId)) {
-      this.userSessions.set(userId, new Set());
+    if (error) {
+      console.error('Error creating session:', error);
+      return next(new AppError('Failed to create document session', 500));
     }
-    this.userSessions.get(userId).add(sessionId);
-
 
     res.status(201).json({
       status: 'success',
@@ -91,52 +88,61 @@ class DocumentCollaborationController {
     const { sessionId } = req.params;
     const userId = req.user?.id || 'anonymous';
 
-    const session = this.activeSessions.get(sessionId);
+    // Get session from Supabase
+    const { data: session, error } = await supabaseAdmin
+      .from('document_sessions')
+      .select('*')
+      .eq('session_id', sessionId)
+      .single();
 
-    if (!session) {
+    if (error || !session) {
       return next(new AppError(`Session with ID ${sessionId} not found`, 404));
     }
 
     // Check participant limits
     if (session.max_editors !== 'unlimited' && 
-        session.participants.size >= parseInt(session.max_editors)) {
+        session.participants.length >= parseInt(session.max_editors)) {
       return next(new AppError('Session is full. Maximum participants reached.', 403));
     }
 
     // Check if already a participant
-    if (session.participants.has(userId)) {
+    if (session.participants.includes(userId)) {
       return res.status(200).json({
         status: 'success',
         message: 'Already joined',
         data: {
-          sessionId: session.sessionId,
-          documentId: session.documentId,
+          sessionId: session.session_id,
+          documentId: session.document_id,
           document_name: session.document_name,
-          websocket_url: `${this.WS_BASE}/yjs-ws?room=${session.documentId}`,
-          participants_count: session.participants.size
+          websocket_url: `${this.WS_BASE}/yjs-ws?room=${session.document_id}`,
+          participants_count: session.participants.length
         }
       });
     }
 
     // Add user to session
-    session.participants.add(userId);
-    
-    // Track user sessions
-    if (!this.userSessions.has(userId)) {
-      this.userSessions.set(userId, new Set());
-    }
-    this.userSessions.get(userId).add(sessionId);
+    session.participants.push(userId);
 
+    // Update in Supabase
+    const { error: updateError } = await supabaseAdmin
+      .from('document_sessions')
+      .update({ participants: session.participants })
+      .eq('session_id', sessionId);
+
+    if (updateError) {
+      console.error('Error updating session:', updateError);
+      return next(new AppError('Failed to join session', 500));
+    }
 
     res.status(200).json({
       status: 'success',
       data: {
-        sessionId: session.sessionId,
-        documentId: session.documentId,
+        sessionId: session.session_id,
+        documentId: session.document_id,
         document_name: session.document_name,
         document_type: session.document_type,
-        websocket_url: `${this.WS_BASE}/yjs-ws?room=${session.documentId}`,
-        participants_count: session.participants.size,
+        websocket_url: `${this.WS_BASE}/yjs-ws?room=${session.document_id}`,
+        participants_count: session.participants.length,
         max_editors: session.max_editors
       }
     });
@@ -149,25 +155,30 @@ class DocumentCollaborationController {
    */
   getDocumentSession = catchAsync(async (req, res, next) => {
     const { sessionId } = req.params;
-    const session = this.activeSessions.get(sessionId);
 
-    if (!session) {
+    const { data: session, error } = await supabaseAdmin
+      .from('document_sessions')
+      .select('*')
+      .eq('session_id', sessionId)
+      .single();
+
+    if (error || !session) {
       return next(new AppError(`Session with ID ${sessionId} not found`, 404));
     }
 
     res.status(200).json({
       status: 'success',
       data: {
-        sessionId: session.sessionId,
-        documentId: session.documentId,
+        sessionId: session.session_id,
+        documentId: session.document_id,
         document_name: session.document_name,
         document_type: session.document_type,
         creator_id: session.creator_id,
         max_editors: session.max_editors,
         is_public: session.is_public,
         created_at: session.created_at,
-        participants_count: session.participants.size,
-        websocket_url: `${this.WS_BASE}/yjs-ws?room=${session.documentId}`,
+        participants_count: session.participants.length,
+        websocket_url: `${this.WS_BASE}/yjs-ws?room=${session.document_id}`,
         status: session.status
       }
     });
@@ -182,24 +193,28 @@ class DocumentCollaborationController {
     const { sessionId } = req.params;
     const userId = req.user?.id || 'anonymous';
 
-    const session = this.activeSessions.get(sessionId);
+    const { data: session, error } = await supabaseAdmin
+      .from('document_sessions')
+      .select('*')
+      .eq('session_id', sessionId)
+      .single();
 
-    if (!session) {
+    if (error || !session) {
       return next(new AppError(`Session with ID ${sessionId} not found`, 404));
     }
 
     // Remove user from session
-    session.participants.delete(userId);
+    session.participants = session.participants.filter(id => id !== userId);
 
-    // Remove from user sessions
-    if (this.userSessions.has(userId)) {
-      this.userSessions.get(userId).delete(sessionId);
-    }
+    // Update in Supabase
+    const { error: updateError } = await supabaseAdmin
+      .from('document_sessions')
+      .update({ participants: session.participants })
+      .eq('session_id', sessionId);
 
-
-    // If no participants left and not the creator, mark as inactive
-    if (session.participants.size === 0 && session.creator_id !== userId) {
-      session.status = 'inactive';
+    if (updateError) {
+      console.error('Error updating session:', updateError);
+      return next(new AppError('Failed to leave session', 500));
     }
 
     res.status(200).json({
@@ -207,7 +222,7 @@ class DocumentCollaborationController {
       message: 'Left document session successfully',
       data: {
         sessionId,
-        remaining_participants: session.participants.size
+        remaining_participants: session.participants.length
       }
     });
   });
@@ -219,27 +234,34 @@ class DocumentCollaborationController {
    */
   getUserDocumentSessions = catchAsync(async (req, res, next) => {
     const userId = req.user?.id || 'anonymous';
-    const userSessionIds = this.userSessions.get(userId) || new Set();
 
-    const sessions = Array.from(userSessionIds)
-      .map(sessionId => this.activeSessions.get(sessionId))
-      .filter(session => session && session.status === 'active')
-      .map(session => ({
-        sessionId: session.sessionId,
-        documentId: session.documentId,
-        document_name: session.document_name,
-        document_type: session.document_type,
-        created_at: session.created_at,
-        participants_count: session.participants.size,
-        is_creator: session.creator_id === userId,
-        websocket_url: `${this.WS_BASE}/yjs-ws?room=${session.documentId}`
-      }));
+    const { data: sessions, error } = await supabaseAdmin
+      .from('document_sessions')
+      .select('*')
+      .contains('participants', [userId])
+      .eq('status', 'active');
+
+    if (error) {
+      console.error('Error fetching user sessions:', error);
+      return next(new AppError('Failed to fetch user sessions', 500));
+    }
+
+    const formattedSessions = sessions.map(session => ({
+      sessionId: session.session_id,
+      documentId: session.document_id,
+      document_name: session.document_name,
+      document_type: session.document_type,
+      created_at: session.created_at,
+      participants_count: session.participants.length,
+      is_creator: session.creator_id === userId,
+      websocket_url: `${this.WS_BASE}/yjs-ws?room=${session.document_id}`
+    }));
 
     res.status(200).json({
       status: 'success',
       data: {
-        sessions,
-        total_count: sessions.length
+        sessions: formattedSessions,
+        total_count: formattedSessions.length
       }
     });
   });
@@ -250,23 +272,32 @@ class DocumentCollaborationController {
    * @param {Object} res - Express response object
    */
   getAllDocumentSessions = catchAsync(async (req, res, next) => {
-    const sessions = Array.from(this.activeSessions.values())
-      .filter(session => session.status === 'active' && session.is_public)
-      .map(session => ({
-        sessionId: session.sessionId,
-        documentId: session.documentId,
-        document_name: session.document_name,
-        document_type: session.document_type,
-        created_at: session.created_at,
-        participants_count: session.participants.size,
-        max_editors: session.max_editors
-      }));
+    const { data: sessions, error } = await supabaseAdmin
+      .from('document_sessions')
+      .select('*')
+      .eq('status', 'active')
+      .eq('is_public', true);
+
+    if (error) {
+      console.error('Error fetching public sessions:', error);
+      return next(new AppError('Failed to fetch public sessions', 500));
+    }
+
+    const formattedSessions = sessions.map(session => ({
+      sessionId: session.session_id,
+      documentId: session.document_id,
+      document_name: session.document_name,
+      document_type: session.document_type,
+      created_at: session.created_at,
+      participants_count: session.participants.length,
+      max_editors: session.max_editors
+    }));
 
     res.status(200).json({
       status: 'success',
       data: {
-        sessions,
-        total_count: sessions.length
+        sessions: formattedSessions,
+        total_count: formattedSessions.length
       }
     });
   });
@@ -274,26 +305,35 @@ class DocumentCollaborationController {
   /**
    * Get collaboration statistics
    */
-  getStats() {
-    return {
-      active_sessions: this.activeSessions.size,
-      active_documents: this.documentRooms.size,
-      total_users: this.userSessions.size,
-      sessions_by_type: this.getSessionsByType()
-    };
-  }
+  getStats = catchAsync(async () => {
+    const { data: sessions, error } = await supabaseAdmin
+      .from('document_sessions')
+      .select('*');
 
-  /**
-   * Get sessions grouped by document type
-   */
-  getSessionsByType() {
+    if (error) {
+      console.error('Error fetching stats:', error);
+      return { active_sessions: 0, active_documents: 0, total_users: 0, sessions_by_type: {} };
+    }
+
+    const activeSessions = sessions.filter(s => s.status === 'active');
     const typeCount = {};
-    this.activeSessions.forEach(session => {
+    activeSessions.forEach(session => {
       const type = session.document_type;
       typeCount[type] = (typeCount[type] || 0) + 1;
     });
-    return typeCount;
-  }
+
+    const allUsers = new Set();
+    sessions.forEach(session => {
+      session.participants.forEach(user => allUsers.add(user));
+    });
+
+    return {
+      active_sessions: activeSessions.length,
+      active_documents: activeSessions.length,
+      total_users: allUsers.size,
+      sessions_by_type: typeCount
+    };
+  });
 }
 
 module.exports = DocumentCollaborationController;
