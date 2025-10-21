@@ -69,7 +69,20 @@ const webrtcServer = new WebRTCSignalingServer();
 const videoSignaling = VideoCallSignaling.initialize(io);
 
 // Initialize Y.js WebSocket server for document collaboration
-const wss = new WebSocket.Server({ server, path: '/yjs-ws' });
+const wss = new WebSocket.Server({ 
+  server, 
+  path: '/yjs-ws',
+  verifyClient: (info) => {
+    const origin = info.origin;
+    const allowedOrigins = [
+      'https://remote-collaboration-work-suit-fron.vercel.app',
+      'http://localhost:5173',
+      'http://localhost:3000',
+      'http://localhost:8000'
+    ];
+    return !origin || allowedOrigins.some(allowed => origin.startsWith(allowed));
+  }
+});
 
 wss.on('connection', (ws, req) => {
   const clientIp = req.socket.remoteAddress;
