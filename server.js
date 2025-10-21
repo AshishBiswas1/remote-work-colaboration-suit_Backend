@@ -33,7 +33,8 @@ const io = socketIo(server, {
   cors: {
     origin: [
       "http://localhost:5173",
-      "http://localhost:3000"
+      "http://localhost:3000",
+      "https://remote-collaboration-work-suit-fron.vercel.app/"
     ],
     methods: ["GET", "POST"],
     credentials: true,
