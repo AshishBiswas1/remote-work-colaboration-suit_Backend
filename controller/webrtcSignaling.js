@@ -20,17 +20,18 @@ class WebRTCSignalingServer {
    * @param {string} path - WebSocket endpoint path
    */
   initialize(server, path = '/yjs-ws') {
+    const frontendOrigins = process.env.FRONTEND_URL ? process.env.FRONTEND_URL.split(',') : [];
+    const defaultOrigins = [
+      'http://localhost:5173',
+      'http://localhost:3000',
+      'http://localhost:8000',
+    ];
+    const allowedOrigins = [...defaultOrigins, ...frontendOrigins];
     this.wss = new WebSocket.Server({ 
       server,
       path: path,
       // WebSocket CORS configuration
       verifyClient: (info) => {
-        const allowedOrigins = [
-          'http://localhost:5173',
-          'http://localhost:3000',
-          'http://localhost:8000'
-        ];
-        
         const origin = info.origin;
         return !origin || allowedOrigins.some(allowed => origin.startsWith(allowed));
       }
