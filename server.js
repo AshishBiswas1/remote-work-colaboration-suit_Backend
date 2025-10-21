@@ -14,6 +14,8 @@ process.on('uncaughtException', err => {
 const app = require('./app');
 const { createServer } = require('http');
 const socketIo = require('socket.io');
+const WebSocket = require('ws');
+const { setupWSConnection } = require('y-websocket/bin/utils');
 const WebRTCSignalingServer = require('./controller/webrtcSignaling');
 const VideoCallSignaling = require('./controller/videoCallSignaling');
 const ChatController = require('./controller/chatController');
@@ -66,11 +68,26 @@ const webrtcServer = new WebRTCSignalingServer();
 // Initialize socket-based video call signaling (join/offer/answer/ice)
 const videoSignaling = VideoCallSignaling.initialize(io);
 
+// Initialize Y.js WebSocket server for document collaboration
+const wss = new WebSocket.Server({ server, path: '/yjs-ws' });
+
+wss.on('connection', (ws, req) => {
+  const clientIp = req.socket.remoteAddress;
+  const url = req.url || '/';
+  console.log(`📡 New client connected to Y.js room "${url}" from: ${clientIp}`);
+  
+  setupWSConnection(ws, req);
+  
+  ws.on('close', () => {
+    console.log(`📴 Client disconnected from Y.js room "${url}": ${clientIp}`);
+  });
+});
+
 // Start server
 server.listen(PORT, () => {
   // Initialize WebRTC signaling server first
   try {
-    webrtcServer.initialize(server, '/yjs-ws');
+    webrtcServer.initialize(server, '/webrtc-ws'); // Changed path to avoid conflict
   } catch (error) {
   }
   
@@ -90,6 +107,9 @@ process.on('unhandledRejection', err => {
   // Gracefully shutdown WebRTC server
   webrtcServer.shutdown();
   
+  // Close Y.js WebSocket server
+  wss.close();
+  
   server.close(() => {
     process.exit(1);
   });
@@ -101,6 +121,9 @@ const gracefulShutdown = (signal) => {
   // Close WebRTC signaling server
   webrtcServer.shutdown();
   
+  // Close Y.js WebSocket server
+  wss.close();
+  
   // Close HTTP server
   server.close(() => {
     process.exit(0);
@@ -111,4 +134,4 @@ process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
 process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 
 // Export for testing and API integration
-module.exports = { server, webrtcServer, io };
+module.exports = { server, webrtcServer, wss, io };
