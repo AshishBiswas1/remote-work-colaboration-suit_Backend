@@ -4,10 +4,8 @@
   "description": "Backend API for remote-work-colaboration-suit_Backend",
   "main": "app.js",
   "scripts": {
-    "start:dev": "nodemon server.js",
-    "start": "nodemon server.js",
-    "start:websocket": "node websocket-server.js",
-    "start:all": "concurrently \"npm run start:dev\" \"npm run start:websocket\""
+  "start:dev": "nodemon server.js",
+  "start": "nodemon server.js"
   },
   "keywords": [],
   "author": "Ashish Biswas",
