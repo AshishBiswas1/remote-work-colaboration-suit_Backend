@@ -14,11 +14,18 @@ if (!process.env.SUPABASE_URL || !process.env.SUPABASE_ANON_KEY || !serviceKey) 
   process.exit(1);
 }
 
-// Handling uncaught exceptions
+// Handling uncaught exceptions with full logs
 process.on('uncaughtException', err => {
+  console.error('💥 CRITICAL UNCAUGHT EXCEPTION in modules:');
+  console.error(err.stack || err);
   process.exit(1);
 });
 
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('💥 CRITICAL UNHANDLED REJECTION:');
+  console.error(reason);
+  process.exit(1);
+});
 // Import app
 const app = require('./app');
 const { createServer } = require('http');
