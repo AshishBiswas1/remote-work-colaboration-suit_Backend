@@ -1,8 +1,13 @@
 require('dotenv').config({ path: './Config.env' });
 
 // Check if DATABASE is loaded correctly
-if(!process.env.SUPABASE_URL || !process.env.SUPABASE_ANON_KEY || !process.env.SUPABASE_SERVICE_KEY) {
-    process.exit(1);
+// Log and check missing variables
+const requiredEnv = ['SUPABASE_URL', 'SUPABASE_ANON_KEY', 'SUPABASE_SERVICE_KEY'];
+const missingEnv = requiredEnv.filter(key => !process.env[key]);
+
+if (missingEnv.length > 0) {
+  console.error(`❌ FATAL: Missing required environment variables on Render: ${missingEnv.join(', ')}`);
+  process.exit(1);
 }
 
 // Handling uncaught exceptions
