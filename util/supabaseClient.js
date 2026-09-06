@@ -17,7 +17,8 @@ const supabase = createClient(supabaseUrl, supabaseAnonKey, {
         autoRefreshToken: true,
         persistSession: true,
         detectSessionInUrl: false
-    }
+    },
+    db: {schema: 'db_backup_1}
 });
 
 // Create admin client for server-side operations (with service key)
