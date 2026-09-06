@@ -1,12 +1,16 @@
 require('dotenv').config({ path: './Config.env' });
 
-// Check if DATABASE is loaded correctly
-// Log and check missing variables
-const requiredEnv = ['SUPABASE_URL', 'SUPABASE_ANON_KEY', 'SUPABASE_SERVICE_KEY'];
-const missingEnv = requiredEnv.filter(key => !process.env[key]);
+// Log presence of environment variables
+console.log('--- Checking Environment Variables ---');
+console.log('SUPABASE_URL present?:', Boolean(process.env.SUPABASE_URL));
+console.log('SUPABASE_ANON_KEY present?:', Boolean(process.env.SUPABASE_ANON_KEY));
+console.log('SUPABASE_SERVICE_KEY present?:', Boolean(process.env.SUPABASE_SERVICE_KEY));
+console.log('SUPABASE_SERVICE_ROLE_KEY present?:', Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY));
 
-if (missingEnv.length > 0) {
-  console.error(`❌ FATAL: Missing required environment variables on Render: ${missingEnv.join(', ')}`);
+const serviceKey = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+if (!process.env.SUPABASE_URL || !process.env.SUPABASE_ANON_KEY || !serviceKey) {
+  console.error('❌ Server startup aborted: One or more Supabase keys are undefined in process.env.');
   process.exit(1);
 }
 
